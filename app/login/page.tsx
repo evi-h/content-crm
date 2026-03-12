@@ -10,27 +10,52 @@ import { Loader2 } from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+
+  function switchMode(next: 'signin' | 'signup') {
+    setMode(next)
+    setError(null)
+    setSuccessMessage(null)
+    setEmail('')
+    setPassword('')
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+    setSuccessMessage(null)
     setLoading(true)
 
     const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
 
-    if (error) {
-      setError('Invalid email or password. Please try again.')
-      setLoading(false)
-      return
+    if (mode === 'signup') {
+      if (password.length < 6) {
+        setError('Password must be at least 6 characters.')
+        setLoading(false)
+        return
+      }
+      const { error } = await supabase.auth.signUp({ email, password })
+      if (error) {
+        setError(error.message)
+      } else {
+        setSuccessMessage('Account created! Check your email to confirm, then sign in.')
+      }
+    } else {
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) {
+        setError('Invalid email or password. Please try again.')
+      } else {
+        router.push('/dashboard')
+        router.refresh()
+      }
     }
 
-    router.push('/dashboard')
-    router.refresh()
+    setLoading(false)
   }
 
   return (
@@ -42,7 +67,9 @@ export default function LoginPage() {
             <span className="text-primary-foreground text-xl font-bold">C</span>
           </div>
           <h1 className="text-2xl font-semibold text-foreground">Content CRM</h1>
-          <p className="text-sm text-muted-foreground mt-1">Sign in to your account</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            {mode === 'signin' ? 'Sign in to your account' : 'Create your account'}
+          </p>
         </div>
 
         {/* Card */}
@@ -70,26 +97,56 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                autoComplete="current-password"
+                autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
               />
             </div>
 
             {error && (
               <p className="text-sm text-destructive">{error}</p>
             )}
+            {successMessage && (
+              <p className="text-sm text-green-600">{successMessage}</p>
+            )}
 
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing in…
+                  {mode === 'signin' ? 'Signing in…' : 'Creating account…'}
                 </>
               ) : (
-                'Sign In'
+                mode === 'signin' ? 'Sign In' : 'Create Account'
               )}
             </Button>
           </form>
         </div>
+
+        {/* Mode toggle */}
+        <p className="mt-4 text-center text-sm text-muted-foreground">
+          {mode === 'signin' ? (
+            <>
+              Don&apos;t have an account?{' '}
+              <button
+                type="button"
+                onClick={() => switchMode('signup')}
+                className="text-primary underline-offset-4 hover:underline"
+              >
+                Sign up
+              </button>
+            </>
+          ) : (
+            <>
+              Already have an account?{' '}
+              <button
+                type="button"
+                onClick={() => switchMode('signin')}
+                className="text-primary underline-offset-4 hover:underline"
+              >
+                Sign in
+              </button>
+            </>
+          )}
+        </p>
       </div>
     </div>
   )
