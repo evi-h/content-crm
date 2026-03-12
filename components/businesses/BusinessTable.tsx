@@ -19,6 +19,7 @@ import {
 import { Plus, Building2 } from 'lucide-react'
 import { format } from 'date-fns'
 import type { Business } from '@/types'
+import { BUSINESS_COLORS } from '@/lib/constants'
 
 // Skeleton loader row
 function SkeletonRow() {
@@ -44,6 +45,7 @@ interface BusinessRowProps {
 function BusinessRow({ business }: BusinessRowProps) {
   const router = useRouter()
   const initials = business.name.slice(0, 2).toUpperCase()
+  const colorDef = BUSINESS_COLORS.find(c => c.id === business.color)
 
   return (
     <TableRow
@@ -59,7 +61,15 @@ function BusinessRow({ business }: BusinessRowProps) {
         </Avatar>
       </TableCell>
       <TableCell>
-        <span className="font-medium text-foreground">{business.name}</span>
+        <div className="flex items-center gap-2">
+          {colorDef && (
+            <span
+              className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+              style={{ backgroundColor: colorDef.hex }}
+            />
+          )}
+          <span className="font-medium text-foreground">{business.name}</span>
+        </div>
       </TableCell>
       <TableCell>
         <span className="text-muted-foreground text-sm">
@@ -150,16 +160,20 @@ export function BusinessTable() {
   }
 
   const isEmpty = !loading && metaLoaded && businessesWithMeta.length === 0
+  const takenColors = businesses.map(b => b.color).filter(Boolean) as string[]
+  const atLimit = businesses.length >= 10
 
   return (
     <>
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-semibold text-foreground">Your Clients</h1>
-          <Button onClick={() => setModalOpen(true)}>
-            <Plus className="h-4 w-4 mr-1.5" />
-            Add Business
-          </Button>
+          <div title={atLimit ? 'All colors taken (10 business limit)' : undefined}>
+            <Button onClick={() => setModalOpen(true)} disabled={atLimit}>
+              <Plus className="h-4 w-4 mr-1.5" />
+              Add Business
+            </Button>
+          </div>
         </div>
 
         {isEmpty ? (
@@ -212,6 +226,7 @@ export function BusinessTable() {
           setMetaLoaded(false)
           refetch()
         }}
+        takenColors={takenColors}
       />
     </>
   )

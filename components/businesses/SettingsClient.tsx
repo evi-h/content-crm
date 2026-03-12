@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useForm, Controller } from 'react-hook-form'
@@ -24,6 +24,7 @@ import {
 import { ArrowLeft, Loader2, Upload, X } from 'lucide-react'
 import type { Business, BrandTone } from '@/types'
 import { cn } from '@/lib/utils'
+import { BUSINESS_COLORS } from '@/lib/constants'
 
 const businessSchema = z.object({
   name: z.string().min(1, 'Business name is required').max(100),
@@ -53,6 +54,20 @@ export function SettingsClient({ business }: SettingsClientProps) {
   const [savingVoice, setSavingVoice] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [selectedColor, setSelectedColor] = useState<string>(business.color ?? '')
+  const [takenColors, setTakenColors] = useState<string[]>([])
+
+  useEffect(() => {
+    async function loadTakenColors() {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('businesses')
+        .select('color')
+        .neq('id', business.id)
+      setTakenColors((data ?? []).map((r: { color: string | null }) => r.color).filter(Boolean) as string[])
+    }
+    loadTakenColors()
+  }, [business.id])
 
   const {
     control: businessControl,
@@ -103,6 +118,7 @@ export function SettingsClient({ business }: SettingsClientProps) {
           instagram_handle: data.instagram_handle || null,
           industry: data.industry || null,
           brand_tone: data.brand_tone || null,
+          color: selectedColor || null,
           logo_url,
         })
         .eq('id', business.id)
@@ -248,6 +264,32 @@ export function SettingsClient({ business }: SettingsClientProps) {
                 </div>
               )}
             />
+          </div>
+
+          {/* Color */}
+          <div className="space-y-1.5">
+            <Label>Color</Label>
+            <div className="flex gap-2 flex-wrap">
+              {BUSINESS_COLORS.map((c) => {
+                const taken = takenColors.includes(c.id)
+                const selected = selectedColor === c.id
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    title={taken ? `${c.label} (taken)` : c.label}
+                    disabled={taken}
+                    onClick={() => !taken && setSelectedColor(c.id)}
+                    className={cn(
+                      'w-7 h-7 rounded-full border-2 transition-transform',
+                      taken ? 'opacity-25 cursor-not-allowed' : 'cursor-pointer hover:scale-110',
+                      selected ? 'border-foreground scale-110' : 'border-transparent'
+                    )}
+                    style={{ backgroundColor: c.hex }}
+                  />
+                )
+              })}
+            </div>
           </div>
 
           <div className="space-y-1.5">

@@ -18,12 +18,14 @@ import {
 import { Loader2, Upload, X } from 'lucide-react'
 import type { BrandTone } from '@/types'
 import { cn } from '@/lib/utils'
+import { BUSINESS_COLORS } from '@/lib/constants'
 
 const schema = z.object({
   name: z.string().min(1, 'Business name is required').max(100, 'Max 100 characters'),
   instagram_handle: z.string().optional(),
   industry: z.string().optional(),
   brand_tone: z.enum(['professional', 'casual', 'playful', 'bold']).optional(),
+  color: z.string().min(1, 'Pick a color'),
 })
 
 type FormData = z.infer<typeof schema>
@@ -39,9 +41,10 @@ interface AddBusinessModalProps {
   open: boolean
   onClose: () => void
   onSuccess: () => void
+  takenColors: string[]
 }
 
-export function AddBusinessModal({ open, onClose, onSuccess }: AddBusinessModalProps) {
+export function AddBusinessModal({ open, onClose, onSuccess, takenColors }: AddBusinessModalProps) {
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -58,6 +61,7 @@ export function AddBusinessModal({ open, onClose, onSuccess }: AddBusinessModalP
       instagram_handle: '',
       industry: '',
       brand_tone: undefined,
+      color: '',
     },
   })
 
@@ -104,6 +108,7 @@ export function AddBusinessModal({ open, onClose, onSuccess }: AddBusinessModalP
         instagram_handle: data.instagram_handle || null,
         industry: data.industry || null,
         brand_tone: data.brand_tone || null,
+        color: data.color,
         logo_url,
       })
 
@@ -118,6 +123,8 @@ export function AddBusinessModal({ open, onClose, onSuccess }: AddBusinessModalP
       setSubmitting(false)
     }
   }
+
+  const allColorsTaken = takenColors.length >= BUSINESS_COLORS.length
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -218,6 +225,43 @@ export function AddBusinessModal({ open, onClose, onSuccess }: AddBusinessModalP
             />
           </div>
 
+          {/* Color */}
+          <div className="space-y-1.5">
+            <Label>
+              Color <span className="text-destructive">*</span>
+            </Label>
+            <Controller
+              name="color"
+              control={control}
+              render={({ field }) => (
+                <div className="flex gap-2 flex-wrap">
+                  {BUSINESS_COLORS.map((c) => {
+                    const taken = takenColors.includes(c.id)
+                    const selected = field.value === c.id
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        title={taken ? `${c.label} (taken)` : c.label}
+                        disabled={taken}
+                        onClick={() => !taken && field.onChange(c.id)}
+                        className={cn(
+                          'w-7 h-7 rounded-full border-2 transition-transform',
+                          taken ? 'opacity-25 cursor-not-allowed' : 'cursor-pointer hover:scale-110',
+                          selected ? 'border-foreground scale-110' : 'border-transparent'
+                        )}
+                        style={{ backgroundColor: c.hex }}
+                      />
+                    )
+                  })}
+                </div>
+              )}
+            />
+            {errors.color && (
+              <p className="text-xs text-destructive">{errors.color.message as string}</p>
+            )}
+          </div>
+
           {/* Logo Upload */}
           <div className="space-y-1.5">
             <Label>Logo (optional)</Label>
@@ -259,16 +303,18 @@ export function AddBusinessModal({ open, onClose, onSuccess }: AddBusinessModalP
             <Button type="button" variant="outline" onClick={handleClose} className="flex-1">
               Cancel
             </Button>
-            <Button type="submit" disabled={submitting} className="flex-1">
-              {submitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving…
-                </>
-              ) : (
-                'Add Business'
-              )}
-            </Button>
+            <div title={allColorsTaken ? 'All colors taken (10 business limit)' : undefined} className="flex-1">
+              <Button type="submit" disabled={submitting || allColorsTaken} className="w-full">
+                {submitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving…
+                  </>
+                ) : (
+                  'Add Business'
+                )}
+              </Button>
+            </div>
           </div>
         </form>
       </DialogContent>

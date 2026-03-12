@@ -11,6 +11,7 @@ export interface Business {
   industry: string | null
   brand_tone: BrandTone | null
   brand_voice_notes: string | null
+  color: string | null
   created_at: string
 }
 

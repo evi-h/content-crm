@@ -69,3 +69,6 @@ create policy "Authenticated users can update post-images"
 create policy "Public can read post-images"
   on storage.objects for select to public
   using (bucket_id = 'post-images');
+
+-- Add color to businesses
+alter table businesses add column if not exists color text;
