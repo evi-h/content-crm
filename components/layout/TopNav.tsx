@@ -2,9 +2,15 @@
 
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { LogOut } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Settings, LogOut } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface TopNavProps {
@@ -36,20 +42,27 @@ export function TopNav({ userEmail }: TopNavProps) {
           <span className="font-semibold text-sm text-foreground">Content CRM</span>
         </div>
 
-        <div className="flex items-center gap-3">
-          <Avatar className="h-8 w-8">
-            <AvatarFallback className="text-xs bg-muted">{initials}</AvatarFallback>
-          </Avatar>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleSignOut}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <LogOut className="h-4 w-4 mr-1.5" />
-            Sign out
-          </Button>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger className="rounded-full focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+            <Avatar className="h-8 w-8 cursor-pointer">
+              <AvatarFallback className="text-xs bg-muted">{initials}</AvatarFallback>
+            </Avatar>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            <div className="px-2 py-1.5 text-xs text-muted-foreground truncate">
+              {userEmail}
+            </div>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => router.push('/dashboard/account')}>
+              <Settings className="h-4 w-4 mr-2" />
+              Account Settings
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleSignOut}>
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   )
