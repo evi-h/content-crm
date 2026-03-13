@@ -6,10 +6,11 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import { Loader2, Sparkles, Upload, X, Calendar } from 'lucide-react'
+import { Loader2, Sparkles, Upload, X, Calendar, Instagram } from 'lucide-react'
 import type { Business } from '@/types'
 import { addDays, format, setHours, setMinutes } from 'date-fns'
 import { cn } from '@/lib/utils'
+import { useInstagramConnection } from '@/hooks/useInstagramConnection'
 
 interface CaptionCreatorProps {
   business: Business
@@ -23,6 +24,9 @@ export function CaptionCreator({ business, onPostSaved }: CaptionCreatorProps) {
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [publishing, setPublishing] = useState(false)
+
+  const { connection } = useInstagramConnection(business.id)
 
   // Default: tomorrow at 9:00 AM
   const defaultDate = format(addDays(new Date(), 1), "yyyy-MM-dd")
@@ -164,6 +168,78 @@ export function CaptionCreator({ business, onPostSaved }: CaptionCreatorProps) {
     }
   }
 
+  async function handlePublish() {
+    if (!caption.trim()) {
+      toast.error('Please generate or write a caption first.')
+      return
+    }
+
+    setPublishing(true)
+    const supabase = createClient()
+
+    try {
+      let image_url: string | null = null
+
+      if (imageFile) {
+        const ext = imageFile.name.split('.').pop()
+        const path = `${business.id}/${Date.now()}.${ext}`
+        const { error: uploadError } = await supabase.storage
+          .from('post-images')
+          .upload(path, imageFile, { upsert: true, contentType: imageFile.type })
+        if (uploadError) throw uploadError
+        const { data: urlData } = supabase.storage.from('post-images').getPublicUrl(path)
+        image_url = urlData.publicUrl
+      } else if (imagePreview) {
+        image_url = imagePreview
+      }
+
+      if (!image_url) {
+        toast.error('Instagram requires an image.')
+        return
+      }
+
+      const res = await fetch('/api/instagram/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ business_id: business.id, image_url, caption }),
+      })
+      const json = await res.json()
+
+      if (!res.ok || !json.success) {
+        toast.error(json.error ?? 'Instagram publish failed.')
+        return
+      }
+
+      // Save to posts table with status published
+      await supabase.from('posts').insert({
+        business_id: business.id,
+        caption,
+        image_url,
+        platform: 'instagram',
+        scheduled_at: null,
+        status: 'published',
+        brief: brief || null,
+      })
+
+      toast.success('Post published to Instagram!')
+
+      // Reset form
+      setBrief('')
+      setCaption('')
+      setImageFile(null)
+      setImagePreview(null)
+      setScheduledDate(format(addDays(new Date(), 1), 'yyyy-MM-dd'))
+      setScheduledTime('09:00')
+
+      onPostSaved()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Publish failed. Please try again.'
+      toast.error(msg)
+    } finally {
+      setPublishing(false)
+    }
+  }
+
   return (
     <div className="max-w-2xl mx-auto py-8 px-4 space-y-6">
 
@@ -298,7 +374,7 @@ export function CaptionCreator({ business, onPostSaved }: CaptionCreatorProps) {
       </div>
 
       {/* Step 6: Save */}
-      <div className="flex gap-3">
+      <div className="flex gap-3 flex-wrap">
         <Button
           onClick={() => savePost('scheduled')}
           disabled={saving || !caption.trim()}
@@ -316,6 +392,24 @@ export function CaptionCreator({ business, onPostSaved }: CaptionCreatorProps) {
         >
           Save as Draft
         </Button>
+        {connection && (
+          <div title={(!imageFile && !imagePreview) ? 'Instagram requires an image' : undefined}>
+            <Button
+              onClick={handlePublish}
+              disabled={publishing || !caption.trim() || (!imageFile && !imagePreview)}
+              variant="outline"
+              className="border-pink-500 text-pink-600 hover:bg-pink-50"
+              size="lg"
+            >
+              {publishing ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Instagram className="mr-2 h-4 w-4" />
+              )}
+              Publish to Instagram
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   )

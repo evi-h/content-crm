@@ -72,3 +72,21 @@ create policy "Public can read post-images"
 
 -- Add color to businesses
 alter table businesses add column if not exists color text;
+
+-- instagram_connections table
+create table if not exists instagram_connections (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid references auth.users(id) on delete cascade not null,
+  business_id uuid references businesses(id) on delete cascade not null unique,
+  access_token text not null,
+  ig_user_id text not null,
+  ig_username text,
+  token_expires_at timestamptz,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+alter table instagram_connections enable row level security;
+create policy "Users manage own instagram connections"
+  on instagram_connections for all
+  using (auth.uid() = user_id);

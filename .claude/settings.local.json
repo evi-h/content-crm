@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(npm install:*)",
-      "Bash(npx shadcn@latest:*)"
+      "Bash(npx shadcn@latest:*)",
+      "Bash(npm run:*)",
+      "WebSearch",
+      "WebFetch(domain:developers.facebook.com)"
     ]
   }
 }

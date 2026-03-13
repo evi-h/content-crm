@@ -13,7 +13,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
-import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
   DialogContent,
@@ -21,10 +20,11 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog'
-import { ArrowLeft, Loader2, Upload, X } from 'lucide-react'
+import { ArrowLeft, Loader2, Upload, X, Instagram, CheckCircle } from 'lucide-react'
 import type { Business, BrandTone } from '@/types'
 import { cn } from '@/lib/utils'
 import { BUSINESS_COLORS } from '@/lib/constants'
+import { useInstagramConnection } from '@/hooks/useInstagramConnection'
 
 const businessSchema = z.object({
   name: z.string().min(1, 'Business name is required').max(100),
@@ -56,6 +56,13 @@ export function SettingsClient({ business }: SettingsClientProps) {
   const [deleting, setDeleting] = useState(false)
   const [selectedColor, setSelectedColor] = useState<string>(business.color ?? '')
   const [takenColors, setTakenColors] = useState<string[]>([])
+
+  const { connection, loading: connectionLoading, refetch: refetchConnection } = useInstagramConnection(business.id)
+  const [tokenInput, setTokenInput] = useState('')
+  const [verifying, setVerifying] = useState(false)
+  const [verified, setVerified] = useState<{ ig_user_id: string; ig_username: string } | null>(null)
+  const [connecting, setConnecting] = useState(false)
+  const [disconnecting, setDisconnecting] = useState(false)
 
   useEffect(() => {
     async function loadTakenColors() {
@@ -164,6 +171,76 @@ export function SettingsClient({ business }: SettingsClientProps) {
     } catch {
       toast.error('Failed to delete business.')
       setDeleting(false)
+    }
+  }
+
+  async function handleVerify() {
+    if (!tokenInput.trim()) return
+    setVerifying(true)
+    try {
+      const res = await fetch('/api/instagram/verify-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_token: tokenInput.trim() }),
+      })
+      const json = await res.json()
+      if (json.valid) {
+        setVerified({ ig_user_id: json.ig_user_id, ig_username: json.ig_username })
+      } else {
+        toast.error(json.error ?? 'Token verification failed.')
+      }
+    } catch {
+      toast.error('Failed to verify token. Check your connection.')
+    } finally {
+      setVerifying(false)
+    }
+  }
+
+  async function handleConnect() {
+    if (!verified) return
+    setConnecting(true)
+    try {
+      const res = await fetch('/api/instagram/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          access_token: tokenInput.trim(),
+          ig_user_id: verified.ig_user_id,
+          ig_username: verified.ig_username,
+          business_id: business.id,
+        }),
+      })
+      const json = await res.json()
+      if (json.success) {
+        toast.success('Instagram account connected!')
+        setTokenInput('')
+        setVerified(null)
+        await refetchConnection()
+      } else {
+        toast.error(json.error ?? 'Failed to connect account.')
+      }
+    } catch {
+      toast.error('Failed to connect Instagram account.')
+    } finally {
+      setConnecting(false)
+    }
+  }
+
+  async function handleDisconnect() {
+    setDisconnecting(true)
+    const supabase = createClient()
+    try {
+      const { error } = await supabase
+        .from('instagram_connections')
+        .delete()
+        .eq('business_id', business.id)
+      if (error) throw error
+      toast.success('Instagram account disconnected.')
+      await refetchConnection()
+    } catch {
+      toast.error('Failed to disconnect.')
+    } finally {
+      setDisconnecting(false)
     }
   }
 
@@ -349,32 +426,84 @@ export function SettingsClient({ business }: SettingsClientProps) {
 
       <Separator className="my-8" />
 
-      {/* 3. Instagram Publishing (Phase 2) */}
+      {/* 3. Instagram Publishing */}
       <section className="mb-8">
         <div className="flex items-center gap-2 mb-4">
+          <Instagram className="h-5 w-5 text-pink-500" />
           <h2 className="text-lg font-medium">Instagram Publishing</h2>
-          <Badge variant="secondary">Coming Soon</Badge>
         </div>
-        <div className="space-y-3 mb-4">
-          {[
-            { step: 1, text: 'Create a Meta Developer account' },
-            { step: 2, text: 'Set up an Instagram Business account' },
-            { step: 3, text: 'Generate an access token' },
-            { step: 4, text: 'Paste token here to connect' },
-          ].map(({ step, text }) => (
-            <div key={step} className="flex items-center gap-3 text-muted-foreground">
-              <span className="flex-shrink-0 w-6 h-6 rounded-full bg-muted border border-border text-xs font-medium flex items-center justify-center">
-                {step}
-              </span>
-              <span className="text-sm">{text}</span>
+
+        {connectionLoading ? (
+          <div className="flex items-center gap-2 text-muted-foreground text-sm">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading…
+          </div>
+        ) : connection ? (
+          <div className="flex items-center justify-between rounded-lg border border-border p-4">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="h-4 w-4 text-green-500" />
+              <span className="text-sm font-medium">Connected as @{connection.ig_username}</span>
             </div>
-          ))}
-        </div>
-        <div title="Coming in the next update">
-          <Button disabled className="opacity-50 cursor-not-allowed">
-            Connect Instagram
-          </Button>
-        </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDisconnect}
+              disabled={disconnecting}
+              className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+            >
+              {disconnecting ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : null}
+              Disconnect
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Paste a long-lived <strong>Instagram Graph API access token</strong> for a Business or Creator account.
+              Get one from the{' '}
+              <a
+                href="https://developers.facebook.com/tools/explorer/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline"
+              >
+                Facebook Graph API Explorer
+              </a>{' '}
+              — select your Instagram app, add permissions{' '}
+              <code className="text-xs bg-muted px-1 py-0.5 rounded">instagram_basic</code> and{' '}
+              <code className="text-xs bg-muted px-1 py-0.5 rounded">instagram_content_publish</code>, then generate a token.
+            </p>
+            <Input
+              placeholder="Paste access token…"
+              value={tokenInput}
+              onChange={(e) => { setTokenInput(e.target.value); setVerified(null) }}
+            />
+            {!verified ? (
+              <Button onClick={handleVerify} disabled={verifying || !tokenInput.trim()}>
+                {verifying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Verify Token
+              </Button>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm text-green-600">
+                  <CheckCircle className="h-4 w-4" />
+                  Found Instagram account: @{verified.ig_username}
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={handleConnect} disabled={connecting}>
+                    {connecting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Connect
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => { setVerified(null); setTokenInput('') }}
+                  >
+                    Try a different token
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       <Separator className="my-8" />
