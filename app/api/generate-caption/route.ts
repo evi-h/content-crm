@@ -11,7 +11,7 @@ interface GenerateCaptionRequest {
   brandVoiceNotes?: string | null
 }
 
-function buildSystemPrompt(
+export function buildSystemPrompt(
   businessName: string,
   industry: string | null | undefined,
   brandTone: BrandTone | null | undefined,

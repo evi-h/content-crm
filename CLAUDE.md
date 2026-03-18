@@ -46,6 +46,44 @@ ANTHROPIC_API_KEY            ← server only
 - Schedule posts (direct publishing in Phase 2)
 - AI: caption generation only (image gen later)
 
+## Testing
+
+### Run tests
+- `npm test` — vitest unit + integration (fast, no browser)
+- `npm run test:watch` — vitest in watch mode
+- `npm run test:coverage` — coverage report
+- `npm run test:e2e` — Playwright E2E (requires `npm run dev` or uses webServer)
+- `npm run test:e2e:ui` — Playwright interactive UI
+
+### Folder layout
+```
+tests/
+  unit/           → Pure function tests (buildSystemPrompt, factories)
+  integration/    → API route handler tests (NextRequest → handler → assert)
+    api/
+      generate-caption.test.ts
+      instagram/
+        verify-token.test.ts
+        connect.test.ts
+        publish.test.ts
+    auth/
+      rls.test.ts   ← requires local Supabase (supabase start)
+  e2e/            → Playwright browser tests
+  mocks/          → MSW server + handlers (anthropic, instagram)
+  helpers/        → factories.ts, supabase-test-client.ts
+  setup.ts        → jest-dom + MSW lifecycle
+```
+
+### Factory pattern
+Use `createBusiness()`, `createPost()`, `createInstagramConnection()`, `createUser()` from `tests/helpers/factories.ts` for consistent test data. Pass overrides as needed.
+
+### Subset runs
+- `npx vitest run tests/unit` — unit only
+- `npx vitest run tests/integration` — integration only
+
+### RLS tests (.env.test required)
+Copy `.env.test` and fill in local Supabase keys. Run `supabase start` first. RLS tests auto-skip if URL is not localhost.
+
 ## What NOT To Do
 - Don't add new npm packages without asking
 - Don't modify /components/ui/ files (shadcn managed)
