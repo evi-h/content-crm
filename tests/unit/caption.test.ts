@@ -3,7 +3,7 @@ import { vi, describe, it, expect } from 'vitest'
 // Prevent Anthropic SDK from detecting jsdom as a browser environment
 vi.mock('@/lib/claude', () => ({ anthropic: {} }))
 
-import { buildSystemPrompt } from '@/app/api/generate-caption/route'
+import { buildSystemPrompt } from '@/lib/caption-prompts'
 import type { BrandTone } from '@/types'
 
 describe('buildSystemPrompt', () => {
