@@ -17,5 +17,26 @@ export default defineConfig({
       'tests/unit/**/*.test.ts',
       'tests/integration/**/*.test.ts',
     ],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html', 'json-summary', 'json'],
+      reportsDirectory: './coverage',
+      exclude: [
+        'node_modules/',
+        'tests/',
+        '.next/',
+        '*.config.*',
+        'types/**',
+        'lib/supabase*.ts',
+        'lib/claude.ts',
+        'middleware.ts',
+      ],
+      thresholds: {
+        lines: 80,
+        functions: 80,
+        branches: 75,
+        statements: 80,
+      },
+    },
   },
 })

@@ -84,6 +84,47 @@ Use `createBusiness()`, `createPost()`, `createInstagramConnection()`, `createUs
 ### RLS tests (.env.test required)
 Copy `.env.test` and fill in local Supabase keys. Run `supabase start` first. RLS tests auto-skip if URL is not localhost.
 
+## Git Workflow
+
+### Coverage requirements (enforced on every commit)
+
+Two checks run automatically in the pre-commit hook:
+
+**1. Overall threshold (80%)**
+The project must maintain at least 80% line, function, branch, and statement coverage.
+If a commit would drop any metric below 80%, the commit is blocked.
+
+**2. Per-file diff check**
+Every source file you change in a commit must have at least one line covered by tests.
+Files with 0% coverage block the commit regardless of the overall percentage.
+
+**What's excluded from diff checks:**
+- `types/` — type-only files
+- `*.test.ts` / `*.spec.ts` — test files themselves
+- Config files (`*.config.*`)
+
+**What to do when blocked:**
+- Write a test that imports and exercises the changed file
+- Run `npm test` locally to verify coverage before committing again
+- Check `coverage/index.html` for a visual breakdown of what's missing
+
+**Emergency bypass:**
+```bash
+git commit --no-verify
+```
+Use only in genuine emergencies. Document why in the commit message.
+
+### Pre-commit flow summary
+```
+git commit
+  └─ .husky/pre-commit
+       ├─ npm test (vitest run --coverage)
+       │    ├─ All tests must pass
+       │    └─ Overall coverage must be ≥ 80% (thresholds block on failure)
+       └─ scripts/check-coverage-diff.sh
+            └─ Every staged source file must have > 0% line coverage
+```
+
 ## What NOT To Do
 - Don't add new npm packages without asking
 - Don't modify /components/ui/ files (shadcn managed)

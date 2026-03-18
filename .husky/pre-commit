@@ -1,0 +1,31 @@
+#!/usr/bin/env sh
+
+echo "🧪 Running tests with coverage..."
+echo ""
+
+# Run full test suite with coverage.
+# Vitest exits non-zero if thresholds are not met (enforces 80% minimum).
+npm test
+
+TEST_EXIT=$?
+
+if [ $TEST_EXIT -ne 0 ]; then
+  echo ""
+  echo "❌ Tests failed or coverage thresholds not met. Commit blocked."
+  echo "   Fix failing tests or improve coverage before committing."
+  exit 1
+fi
+
+echo ""
+
+# Check that every file changed in this commit has coverage.
+sh scripts/check-coverage-diff.sh
+
+DIFF_EXIT=$?
+
+if [ $DIFF_EXIT -ne 0 ]; then
+  exit 1
+fi
+
+echo ""
+echo "✅ Tests passing, thresholds met, changed files covered. Committing."
