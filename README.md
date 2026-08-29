@@ -1,36 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Content CRM
 
-## Getting Started
+A personal CRM for managing client businesses and creating Instagram posts with AI-generated captions.
 
-First, run the development server:
+**Live demo:** [content-crm-lilac.vercel.app](https://content-crm-lilac.vercel.app)
+
+## What you can do
+
+- Sign in or create an account (email + password)
+- Add client businesses with industry, brand tone, Instagram handle, and logo
+- Generate Instagram captions from a brief via a server-side Claude API (keys never reach the browser)
+- Save drafts or schedule posts on a calendar
+- Connect an Instagram Business/Creator account and publish a post when a connection is set up
+
+This is an MVP: one user (no teams), Instagram only, captions only (no image generation). Scheduling is the main path; live publishing is optional once Instagram is connected.
+
+## Stack
+
+Next.js 14 (App Router) · React 18 · TypeScript · Tailwind CSS · shadcn/ui · Zod · react-hook-form · Supabase (Postgres, Auth, Storage, RLS) · Anthropic SDK · Vitest · Playwright · MSW · Husky · Vercel
+
+## Data model
+
+Three tables, each with row-level security so a user only sees their own rows:
+
+- **businesses** — clients (`user_id`, name, handle, logo, industry, brand tone, voice notes)
+- **posts** — drafts, scheduled, or published Instagram posts (`business_id`, caption, image, schedule, status, brief)
+- **instagram_connections** — per-business Graph API credentials (`user_id`, `business_id`, token, IG user id)
+
+Sensitive calls (Claude, Instagram) go through `/app/api` routes.
+
+## Local setup
+
+```bash
+git clone https://github.com/evi-h/content-crm.git
+cd content-crm
+npm install
+```
+
+Create `.env.local` (no `.env.example` in the repo):
+
+```
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+ANTHROPIC_API_KEY=
+```
+
+`SUPABASE_SERVICE_ROLE_KEY` and `ANTHROPIC_API_KEY` are server-only.
+
+You also need a Supabase project with the schema in `supabase/migrations.sql` (tables + RLS + Storage buckets `logos` and `post-images`).
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Tests
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm test           # Vitest unit + integration (with coverage)
+npm run test:e2e   # Playwright: client-management, post-scheduling, caption-generation
+```
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Husky runs the Vitest suite and coverage checks on every local commit. There is no GitHub Actions workflow. Vercel builds and deploys on push.
